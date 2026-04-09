@@ -1,5 +1,5 @@
 --====================================================
--- 🔐 KEY SYSTEM (LOADS FIRST - BLOCKS EVERYTHING)
+-- 🔐 KEY SYSTEM
 --====================================================
 
 local Players = game:GetService("Players")
@@ -66,7 +66,7 @@ end)
 repeat task.wait() until unlocked
 
 --====================================================
--- ✅ MAIN SCRIPT
+-- ✅ MAIN
 --====================================================
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
@@ -84,6 +84,17 @@ local smoothness = 0.15
 local aimPart = "Head"
 local IJ = false
 
+-- ESP SETTINGS
+ESP.Enabled = false
+ESP.Players = true
+ESP.Boxes = true
+ESP.Names = true
+ESP.Health = true
+ESP.Distance = true
+ESP.Tracers = false
+ESP.Color = Color3.fromRGB(255,0,0)
+ESP.TeamColor = false
+
 -- FOV
 local fovRadius = 120
 local fovCircle = Drawing.new("Circle")
@@ -91,19 +102,24 @@ fovCircle.Visible = true
 fovCircle.Radius = fovRadius
 fovCircle.Thickness = 2
 fovCircle.Filled = false
+fovCircle.Color = Color3.fromRGB(255,255,255)
 
 -- HIGHLIGHT
 local highlightEnabled = false
 local highlights = {}
 
 --====================================================
--- 🎯 CENTER-BASED AIMBOT FUNCTION
+-- FUNCTIONS
 --====================================================
+
+local function getCenter()
+    local v = Camera.ViewportSize
+    return Vector2.new(v.X/2, v.Y/2)
+end
 
 local function getClosest()
     local closest, dist = nil, fovRadius
-    local viewportSize = Camera.ViewportSize
-    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
+    local center = getCenter()
 
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(aimPart) then
@@ -136,19 +152,23 @@ UIS.InputEnded:Connect(function(input)
 end)
 
 --====================================================
--- 🎯 MAIN LOOP (FOV LOCKED TO CENTER)
+-- MAIN LOOP
 --====================================================
 
 RunService.RenderStepped:Connect(function()
-    local viewportSize = Camera.ViewportSize
-    local center = Vector2.new(viewportSize.X / 2, viewportSize.Y / 2)
-
-    -- FORCE CENTER
+    local center = getCenter()
     fovCircle.Position = center
 
-    if not aimbotEnabled then return end
-
     local target = getClosest()
+
+    -- FOV COLOR CHANGE
+    if target then
+        fovCircle.Color = Color3.fromRGB(255,0,0)
+    else
+        fovCircle.Color = Color3.fromRGB(255,255,255)
+    end
+
+    if not aimbotEnabled then return end
     if not target then return end
 
     local targetCF = CFrame.new(Camera.CFrame.Position, target[aimPart].Position)
@@ -237,7 +257,35 @@ local ESPTab = Window:CreateTab("ESP", 4483362458)
 ESPTab:CreateToggle({
     Name = "Enable ESP",
     Callback = function(v)
-        if ESP then ESP.Enabled = v end
+        ESP.Enabled = v
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Tracers",
+    Callback = function(v)
+        ESP.Tracers = v
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Boxes",
+    Callback = function(v)
+        ESP.Boxes = v
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Names",
+    Callback = function(v)
+        ESP.Names = v
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Distance",
+    Callback = function(v)
+        ESP.Distance = v
     end
 })
 
