@@ -69,18 +69,17 @@ repeat task.wait() until unlocked
 --====================================================
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/linemaster2/esp-library/main/library.lua"))()
 
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
--- AIMBOT (unchanged basic)
+-- AIMBOT SETTINGS
 local aimbotEnabled = false
-local smoothAim = false
 local aiming = false
-local smoothness = 0.15
 local aimPart = "Head"
+local aimStrength = 0.2
+local prediction = 0.12
 
 -- SPEED
 local walkSpeed = 16
@@ -88,23 +87,18 @@ local runSpeed = 32
 local running = false
 local speedEnabled = true
 
--- ESP SETTINGS
-ESP.Enabled = false
-ESP.Boxes = true
-ESP.Names = true
-ESP.Distance = true
-ESP.Health = true
-ESP.Tracers = false
-ESP.Color = Color3.fromRGB(255,0,0)
-
--- FOV SETTINGS
+-- FOV
 local fovRadius = 120
 local showFOV = true
 local fovColor = Color3.fromRGB(255,255,255)
 local fovThickness = 2
 local fovFilled = false
-
 local fovCircle = Drawing.new("Circle")
+
+-- WORKING ESP
+local espEnabled = false
+local espColor = Color3.fromRGB(255,0,0)
+local playerHighlights = {}
 
 --====================================================
 -- FUNCTIONS
@@ -135,6 +129,31 @@ local function getClosest()
     return closest
 end
 
+-- ESP FUNCTION
+local function updateESP()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            if espEnabled then
+                if not playerHighlights[plr] then
+                    local hl = Instance.new("Highlight")
+                    hl.FillColor = espColor
+                    hl.OutlineColor = Color3.new(1,1,1)
+                    hl.FillTransparency = 0.5
+                    hl.Parent = plr.Character
+                    playerHighlights[plr] = hl
+                else
+                    playerHighlights[plr].FillColor = espColor
+                end
+            else
+                if playerHighlights[plr] then
+                    playerHighlights[plr]:Destroy()
+                    playerHighlights[plr] = nil
+                end
+            end
+        end
+    end
+end
+
 -- INPUT
 UIS.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -155,7 +174,7 @@ UIS.InputEnded:Connect(function(input)
 end)
 
 --====================================================
--- LOOP
+-- MAIN LOOP
 --====================================================
 
 RunService.RenderStepped:Connect(function()
@@ -171,13 +190,14 @@ RunService.RenderStepped:Connect(function()
 
     local target = getClosest()
 
-    -- AIMBOT
-    if aimbotEnabled and target then
-        local targetCF = CFrame.new(Camera.CFrame.Position, target[aimPart].Position)
-        if smoothAim then
-            Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothness)
-        elseif aiming then
-            Camera.CFrame = targetCF
+    -- ✅ FIXED AIMBOT (SMOOTH + PREDICTION)
+    if aimbotEnabled and aiming and target then
+        local part = target:FindFirstChild(aimPart)
+        if part then
+            local velocity = part.Velocity or Vector3.new()
+            local predicted = part.Position + (velocity * prediction)
+            local cf = CFrame.new(Camera.CFrame.Position, predicted)
+            Camera.CFrame = Camera.CFrame:Lerp(cf, aimStrength)
         end
     end
 
@@ -189,6 +209,9 @@ RunService.RenderStepped:Connect(function()
             hum.WalkSpeed = speedEnabled and (running and runSpeed or walkSpeed) or 16
         end
     end
+
+    -- ESP
+    updateESP()
 end)
 
 --====================================================
@@ -202,10 +225,24 @@ local Window = Rayfield:CreateWindow({
     Theme = "Ocean"
 })
 
+-- AIMBOT TAB
 local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
 
 AimbotTab:CreateToggle({Name="Enable Aimbot",Callback=function(v)aimbotEnabled=v end})
-AimbotTab:CreateToggle({Name="Smooth Aim",Callback=function(v)smoothAim=v end})
+
+AimbotTab:CreateSlider({
+    Name="Smoothness",
+    Range={1,100},
+    CurrentValue=20,
+    Callback=function(v)aimStrength = v/100 end
+})
+
+AimbotTab:CreateSlider({
+    Name="Prediction",
+    Range={0,30},
+    CurrentValue=12,
+    Callback=function(v)prediction = v/100 end
+})
 
 AimbotTab:CreateSlider({
     Name="FOV Size",
@@ -214,10 +251,7 @@ AimbotTab:CreateSlider({
     Callback=function(v)fovRadius=v end
 })
 
-AimbotTab:CreateToggle({
-    Name="Show FOV",
-    Callback=function(v)showFOV=v end
-})
+AimbotTab:CreateToggle({Name="Show FOV",Callback=function(v)showFOV=v end})
 
 AimbotTab:CreateColorPicker({
     Name="FOV Color",
@@ -225,32 +259,15 @@ AimbotTab:CreateColorPicker({
     Callback=function(v)fovColor=v end
 })
 
-AimbotTab:CreateSlider({
-    Name="FOV Thickness",
-    Range={1,10},
-    CurrentValue=2,
-    Callback=function(v)fovThickness=v end
-})
-
-AimbotTab:CreateToggle({
-    Name="Filled FOV",
-    Callback=function(v)fovFilled=v end
-})
-
 -- ESP TAB
 local ESPTab = Window:CreateTab("ESP", 4483362458)
 
-ESPTab:CreateToggle({Name="Enable ESP",Callback=function(v)ESP.Enabled=v end})
-ESPTab:CreateToggle({Name="Boxes",Callback=function(v)ESP.Boxes=v end})
-ESPTab:CreateToggle({Name="Names",Callback=function(v)ESP.Names=v end})
-ESPTab:CreateToggle({Name="Distance",Callback=function(v)ESP.Distance=v end})
-ESPTab:CreateToggle({Name="Health",Callback=function(v)ESP.Health=v end})
-ESPTab:CreateToggle({Name="Tracers",Callback=function(v)ESP.Tracers=v end})
+ESPTab:CreateToggle({Name="Enable ESP",Callback=function(v)espEnabled=v end})
 
 ESPTab:CreateColorPicker({
     Name="ESP Color",
     Color=Color3.fromRGB(255,0,0),
-    Callback=function(v)ESP.Color=v end
+    Callback=function(v)espColor=v end
 })
 
 -- PLAYER TAB
