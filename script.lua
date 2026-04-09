@@ -1,5 +1,5 @@
 --====================================================
--- 🔐 KEY SYSTEM
+-- 🔐 KEY SYSTEM (UNCHANGED)
 --====================================================
 
 local Players = game:GetService("Players")
@@ -74,76 +74,37 @@ local ESP = loadstring(game:HttpGet("https://raw.githubusercontent.com/linemaste
 local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- AIMBOT / TARGET
+-- AIMBOT (unchanged basic)
 local aimbotEnabled = false
 local smoothAim = false
 local aiming = false
 local smoothness = 0.15
 local aimPart = "Head"
-local lockedTarget = nil
 
 -- SPEED
 local walkSpeed = 16
 local runSpeed = 32
 local running = false
 local speedEnabled = true
-local defaultSpeed = 16
 
--- ESP
+-- ESP SETTINGS
 ESP.Enabled = false
+ESP.Boxes = true
+ESP.Names = true
+ESP.Distance = true
+ESP.Health = true
+ESP.Tracers = false
+ESP.Color = Color3.fromRGB(255,0,0)
 
--- FOV
+-- FOV SETTINGS
 local fovRadius = 120
 local showFOV = true
+local fovColor = Color3.fromRGB(255,255,255)
+local fovThickness = 2
+local fovFilled = false
+
 local fovCircle = Drawing.new("Circle")
-
--- HIGHLIGHT
-local highlightEnabled = false
-local highlights = {}
-
---====================================================
--- 👕 SKIN SYSTEM
---====================================================
-
-local SkinFolder = Instance.new("Folder")
-SkinFolder.Name = "ClientSkins"
-SkinFolder.Parent = ReplicatedStorage
-
-local function createSkin(name, shirtId, pantsId)
-    local folder = Instance.new("Folder")
-    folder.Name = name
-
-    local shirt = Instance.new("Shirt")
-    shirt.ShirtTemplate = shirtId
-    shirt.Parent = folder
-
-    local pants = Instance.new("Pants")
-    pants.PantsTemplate = pantsId
-    pants.Parent = folder
-
-    folder.Parent = SkinFolder
-end
-
--- 🔥 PUT REAL IDS HERE
-createSkin("Red", "rbxassetid://144076760", "rbxassetid://144076759")
-createSkin("Blue", "rbxassetid://398633812", "rbxassetid://398633584")
-
-local function applySkin(skin)
-    local char = LocalPlayer.Character
-    if not char then return end
-
-    for _, v in pairs(char:GetChildren()) do
-        if v:IsA("Shirt") or v:IsA("Pants") then
-            v:Destroy()
-        end
-    end
-
-    for _, v in pairs(skin:GetChildren()) do
-        v:Clone().Parent = char
-    end
-end
 
 --====================================================
 -- FUNCTIONS
@@ -174,14 +135,6 @@ local function getClosest()
     return closest
 end
 
-local function getTarget()
-    if lockedTarget and lockedTarget.Parent then
-        return lockedTarget
-    end
-    lockedTarget = getClosest()
-    return lockedTarget
-end
-
 -- INPUT
 UIS.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
@@ -202,7 +155,7 @@ UIS.InputEnded:Connect(function(input)
 end)
 
 --====================================================
--- MAIN LOOP
+-- LOOP
 --====================================================
 
 RunService.RenderStepped:Connect(function()
@@ -212,8 +165,11 @@ RunService.RenderStepped:Connect(function()
     fovCircle.Visible = showFOV
     fovCircle.Position = center
     fovCircle.Radius = fovRadius
+    fovCircle.Color = fovColor
+    fovCircle.Thickness = fovThickness
+    fovCircle.Filled = fovFilled
 
-    local target = getTarget()
+    local target = getClosest()
 
     -- AIMBOT
     if aimbotEnabled and target then
@@ -230,21 +186,7 @@ RunService.RenderStepped:Connect(function()
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
-            hum.WalkSpeed = speedEnabled and (running and runSpeed or walkSpeed) or defaultSpeed
-        end
-    end
-
-    -- HIGHLIGHT
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and plr.Character then
-            if highlightEnabled then
-                if not highlights[plr] then
-                    highlights[plr] = Instance.new("Highlight", plr.Character)
-                end
-            elseif highlights[plr] then
-                highlights[plr]:Destroy()
-                highlights[plr] = nil
-            end
+            hum.WalkSpeed = speedEnabled and (running and runSpeed or walkSpeed) or 16
         end
     end
 end)
@@ -265,10 +207,53 @@ local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
 AimbotTab:CreateToggle({Name="Enable Aimbot",Callback=function(v)aimbotEnabled=v end})
 AimbotTab:CreateToggle({Name="Smooth Aim",Callback=function(v)smoothAim=v end})
 
-local ESPTab = Window:CreateTab("ESP", 4483362458)
-ESPTab:CreateToggle({Name="Enable ESP",Callback=function(v)ESP.Enabled=v end})
-ESPTab:CreateToggle({Name="Highlight",Callback=function(v)highlightEnabled=v end})
+AimbotTab:CreateSlider({
+    Name="FOV Size",
+    Range={50,400},
+    CurrentValue=120,
+    Callback=function(v)fovRadius=v end
+})
 
+AimbotTab:CreateToggle({
+    Name="Show FOV",
+    Callback=function(v)showFOV=v end
+})
+
+AimbotTab:CreateColorPicker({
+    Name="FOV Color",
+    Color=Color3.fromRGB(255,255,255),
+    Callback=function(v)fovColor=v end
+})
+
+AimbotTab:CreateSlider({
+    Name="FOV Thickness",
+    Range={1,10},
+    CurrentValue=2,
+    Callback=function(v)fovThickness=v end
+})
+
+AimbotTab:CreateToggle({
+    Name="Filled FOV",
+    Callback=function(v)fovFilled=v end
+})
+
+-- ESP TAB
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+
+ESPTab:CreateToggle({Name="Enable ESP",Callback=function(v)ESP.Enabled=v end})
+ESPTab:CreateToggle({Name="Boxes",Callback=function(v)ESP.Boxes=v end})
+ESPTab:CreateToggle({Name="Names",Callback=function(v)ESP.Names=v end})
+ESPTab:CreateToggle({Name="Distance",Callback=function(v)ESP.Distance=v end})
+ESPTab:CreateToggle({Name="Health",Callback=function(v)ESP.Health=v end})
+ESPTab:CreateToggle({Name="Tracers",Callback=function(v)ESP.Tracers=v end})
+
+ESPTab:CreateColorPicker({
+    Name="ESP Color",
+    Color=Color3.fromRGB(255,0,0),
+    Callback=function(v)ESP.Color=v end
+})
+
+-- PLAYER TAB
 local PlayerTab = Window:CreateTab("Player", 4483362458)
 
 PlayerTab:CreateSlider({
@@ -284,27 +269,3 @@ PlayerTab:CreateSlider({
     CurrentValue=32,
     Callback=function(v)runSpeed=v end
 })
-
--- 👕 SKIN TAB
-local SkinTab = Window:CreateTab("Skins", 4483362458)
-
-for _, skin in pairs(SkinFolder:GetChildren()) do
-    SkinTab:CreateButton({
-        Name = skin.Name,
-        Callback = function()
-            applySkin(skin)
-        end
-    })
-end
-
-if UserRole == "OWNER" then
-    SkinTab:CreateButton({
-        Name = "Cycle Skins",
-        Callback = function()
-            for _, skin in pairs(SkinFolder:GetChildren()) do
-                applySkin(skin)
-                task.wait(2)
-            end
-        end
-    })
-end
