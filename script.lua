@@ -205,17 +205,13 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- SPEED (TOGGLEABLE)
+    -- SPEED
     local char = LocalPlayer.Character
     if char then
         local hum = char:FindFirstChildOfClass("Humanoid")
         if hum then
             if speedEnabled then
-                if running then
-                    hum.WalkSpeed = runSpeed
-                else
-                    hum.WalkSpeed = walkSpeed
-                end
+                hum.WalkSpeed = running and runSpeed or walkSpeed
             else
                 hum.WalkSpeed = defaultSpeed
             end
@@ -238,13 +234,6 @@ RunService.RenderStepped:Connect(function()
                 end
             end
         end
-    end
-end)
-
--- INFINITE JUMP
-UIS.JumpRequest:Connect(function()
-    if LocalPlayer.Character then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
     end
 end)
 
@@ -321,5 +310,3 @@ PlayerTab:CreateSlider({
     CurrentValue=32,
     Callback=function(v)runSpeed=v end
 })
-
-PlayerTab:CreateToggle({Name="Infinite Jump",Callback=function(v)IJ=v end})
