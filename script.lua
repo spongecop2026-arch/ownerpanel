@@ -53,7 +53,6 @@ btn.Text = "Submit"
 
 btn.MouseButton1Click:Connect(function()
     local key = box.Text
-
     if GetRole(key) then
         UserRole = GetRole(key)
         unlocked = true
@@ -66,7 +65,7 @@ end)
 repeat task.wait() until unlocked
 
 --====================================================
--- ✅ MAIN
+-- MAIN
 --====================================================
 
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
@@ -76,15 +75,21 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Camera = workspace.CurrentCamera
 
--- VARIABLES
+-- AIMBOT
 local aimbotEnabled = false
 local smoothAim = false
 local aiming = false
 local smoothness = 0.15
 local aimPart = "Head"
-local IJ = false
 
--- ESP SETTINGS
+-- SPEED
+local walkSpeed = 16
+local runSpeed = 32
+local running = false
+local speedEnabled = true
+local defaultSpeed = 16
+
+-- ESP
 ESP.Enabled = false
 ESP.Players = true
 ESP.Boxes = true
@@ -97,12 +102,14 @@ ESP.TeamColor = false
 
 -- FOV
 local fovRadius = 120
+local showFOV = true
+local rainbowFOV = false
+local pulseFOV = false
+local fovThickness = 2
+local fovFilled = false
+local pulseTick = 0
+
 local fovCircle = Drawing.new("Circle")
-fovCircle.Visible = true
-fovCircle.Radius = fovRadius
-fovCircle.Thickness = 2
-fovCircle.Filled = false
-fovCircle.Color = Color3.fromRGB(255,255,255)
 
 -- HIGHLIGHT
 local highlightEnabled = false
@@ -124,7 +131,6 @@ local function getClosest()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild(aimPart) then
             local pos, visible = Camera:WorldToViewportPoint(plr.Character[aimPart].Position)
-
             if visible then
                 local diff = (Vector2.new(pos.X, pos.Y) - center).Magnitude
                 if diff < dist then
@@ -143,11 +149,17 @@ UIS.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         aiming = true
     end
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        running = true
+    end
 end)
 
 UIS.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton2 then
         aiming = false
+    end
+    if input.KeyCode == Enum.KeyCode.LeftShift then
+        running = false
     end
 end)
 
@@ -157,43 +169,67 @@ end)
 
 RunService.RenderStepped:Connect(function()
     local center = getCenter()
+
+    -- FOV
+    fovCircle.Visible = showFOV
     fovCircle.Position = center
+
+    if pulseFOV then
+        pulseTick += 0.05
+        fovCircle.Radius = fovRadius + math.sin(pulseTick) * 5
+    else
+        fovCircle.Radius = fovRadius
+    end
+
+    if rainbowFOV then
+        local t = tick() % 5 / 5
+        fovCircle.Color = Color3.fromHSV(t,1,1)
+    end
 
     local target = getClosest()
 
-    -- FOV COLOR CHANGE
-    if target then
-        fovCircle.Color = Color3.fromRGB(255,0,0)
-    else
-        fovCircle.Color = Color3.fromRGB(255,255,255)
+    if not rainbowFOV then
+        fovCircle.Color = target and Color3.fromRGB(255,0,0) or Color3.fromRGB(255,255,255)
     end
 
-    if not aimbotEnabled then return end
-    if not target then return end
+    fovCircle.Thickness = fovThickness
+    fovCircle.Filled = fovFilled
 
-    local targetCF = CFrame.new(Camera.CFrame.Position, target[aimPart].Position)
-
-    if smoothAim then
-        Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothness)
-    else
-        if aiming then
+    -- AIMBOT
+    if aimbotEnabled and target then
+        local targetCF = CFrame.new(Camera.CFrame.Position, target[aimPart].Position)
+        if smoothAim then
+            Camera.CFrame = Camera.CFrame:Lerp(targetCF, smoothness)
+        elseif aiming then
             Camera.CFrame = targetCF
+        end
+    end
+
+    -- SPEED (TOGGLEABLE)
+    local char = LocalPlayer.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum then
+            if speedEnabled then
+                if running then
+                    hum.WalkSpeed = runSpeed
+                else
+                    hum.WalkSpeed = walkSpeed
+                end
+            else
+                hum.WalkSpeed = defaultSpeed
+            end
         end
     end
 end)
 
---====================================================
 -- HIGHLIGHT
---====================================================
-
 RunService.RenderStepped:Connect(function()
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             if highlightEnabled then
                 if not highlights[plr] then
-                    local hl = Instance.new("Highlight")
-                    hl.Parent = plr.Character
-                    highlights[plr] = hl
+                    highlights[plr] = Instance.new("Highlight", plr.Character)
                 end
             else
                 if highlights[plr] then
@@ -207,7 +243,7 @@ end)
 
 -- INFINITE JUMP
 UIS.JumpRequest:Connect(function()
-    if IJ and LocalPlayer.Character then
+    if LocalPlayer.Character then
         LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
     end
 end)
@@ -223,82 +259,67 @@ local Window = Rayfield:CreateWindow({
     Theme = "Ocean"
 })
 
-local RoleTab = Window:CreateTab("Role", 4483362458)
-RoleTab:CreateLabel("Role: " .. UserRole)
-
 local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
 
-AimbotTab:CreateToggle({
-    Name = "Enable Aimbot",
-    Callback = function(v) aimbotEnabled = v end
-})
-
-AimbotTab:CreateToggle({
-    Name = "Smooth Aim (VIP+)",
-    Callback = function(v)
-        if UserRole == "OWNER" or UserRole == "VIP" then
-            smoothAim = v
-        end
-    end
-})
+AimbotTab:CreateToggle({Name="Enable Aimbot",Callback=function(v)aimbotEnabled=v end})
+AimbotTab:CreateToggle({Name="Smooth Aim",Callback=function(v)smoothAim=v end})
 
 AimbotTab:CreateSlider({
-    Name = "FOV Radius",
-    Range = {50,300},
-    CurrentValue = 120,
-    Callback = function(v)
-        fovRadius = v
-        fovCircle.Radius = v
-    end
+    Name="FOV Radius",
+    Range={50,300},
+    CurrentValue=120,
+    Callback=function(v)fovRadius=v end
+})
+
+AimbotTab:CreateToggle({Name="Show FOV",Callback=function(v)showFOV=v end})
+AimbotTab:CreateToggle({Name="Rainbow FOV",Callback=function(v)rainbowFOV=v end})
+AimbotTab:CreateToggle({Name="Pulse FOV",Callback=function(v)pulseFOV=v end})
+AimbotTab:CreateToggle({Name="Filled FOV",Callback=function(v)fovFilled=v end})
+
+AimbotTab:CreateSlider({
+    Name="FOV Thickness",
+    Range={1,10},
+    CurrentValue=2,
+    Callback=function(v)fovThickness=v end
 })
 
 local ESPTab = Window:CreateTab("ESP", 4483362458)
 
-ESPTab:CreateToggle({
-    Name = "Enable ESP",
-    Callback = function(v)
-        ESP.Enabled = v
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Tracers",
-    Callback = function(v)
-        ESP.Tracers = v
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Boxes",
-    Callback = function(v)
-        ESP.Boxes = v
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Names",
-    Callback = function(v)
-        ESP.Names = v
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Distance",
-    Callback = function(v)
-        ESP.Distance = v
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Highlight Players",
-    Callback = function(v)
-        highlightEnabled = v
-    end
-})
+ESPTab:CreateToggle({Name="Enable ESP",Callback=function(v)ESP.Enabled=v end})
+ESPTab:CreateToggle({Name="Boxes",Callback=function(v)ESP.Boxes=v end})
+ESPTab:CreateToggle({Name="Tracers",Callback=function(v)ESP.Tracers=v end})
+ESPTab:CreateToggle({Name="Names",Callback=function(v)ESP.Names=v end})
+ESPTab:CreateToggle({Name="Distance",Callback=function(v)ESP.Distance=v end})
+ESPTab:CreateToggle({Name="Highlight",Callback=function(v)highlightEnabled=v end})
 
 local PlayerTab = Window:CreateTab("Player", 4483362458)
 
 PlayerTab:CreateToggle({
-    Name = "Infinite Jump",
-    Callback = function(v) IJ = v end
+    Name="Enable Custom Speed",
+    Callback=function(v)
+        speedEnabled = v
+        if not v then
+            local char = LocalPlayer.Character
+            if char then
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum then hum.WalkSpeed = 16 end
+            end
+        end
+    end
 })
+
+PlayerTab:CreateSlider({
+    Name="Walk Speed",
+    Range={8,150},
+    CurrentValue=16,
+    Callback=function(v)walkSpeed=v end
+})
+
+PlayerTab:CreateSlider({
+    Name="Run Speed (Shift)",
+    Range={16,300},
+    CurrentValue=32,
+    Callback=function(v)runSpeed=v end
+})
+
+PlayerTab:CreateToggle({Name="Infinite Jump",Callback=function(v)IJ=v end})
